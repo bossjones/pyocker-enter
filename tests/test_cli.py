@@ -1,0 +1,86 @@
+from __future__ import annotations
+
+from datetime import datetime, timezone
+from unittest.mock import MagicMock, patch
+
+from typer.testing import CliRunner
+
+from pyocker_enter.cli import app
+from pyocker_enter.docker_utils import ContainerRecord
+from pyocker_enter.errors import ExitCode
+
+
+def _record(name: str = "web-api", short: str = "aaaaaaaaaaaa") -> ContainerRecord:
+    return ContainerRecord(
+        id=short + "0" * (64 - len(short)),
+        short_id=short,
+        name=name,
+        image="nginx:latest",
+        status="running",
+        started_at=datetime.now(tz=timezone.utc),
+    )
+
+
+def test_cli_direct_exec_skips_tui() -> None:
+    """`pyocker-enter <name> --shell bash` must resolve + exec without launching the TUI."""
+    rec = _record()
+    runner = CliRunner()
+
+    with (
+        patch("pyocker_enter.cli.list_running_containers", return_value=[rec]) as mock_list,
+        patch("pyocker_enter.cli.enter_container") as mock_enter,
+        patch("pyocker_enter.cli._require_tty"),
+        patch("pyocker_enter.cli._launch_tui", create=True) as mock_tui,
+    ):
+        result = runner.invoke(app, ["web-api", "--shell", "bash"])
+
+    assert result.exit_code == 0, f"stdout={result.stdout!r} exc={result.exception!r}"
+    mock_list.assert_called_once()
+    mock_enter.assert_called_once_with(rec.id, "bash")
+    mock_tui.assert_not_called()
+
+
+def test_cli_direct_exec_no_shell_flag_probes_and_defaults_to_bash() -> None:
+    """Without --shell, CLI should probe and prefer bash when installed."""
+    rec = _record()
+    runner = CliRunner()
+
+    with (
+        patch("pyocker_enter.cli.list_running_containers", return_value=[rec]),
+        patch("pyocker_enter.cli.probe_available_shells", return_value=["sh", "bash"]),
+        patch("pyocker_enter.cli.enter_container") as mock_enter,
+        patch("pyocker_enter.cli._require_tty"),
+    ):
+        result = runner.invoke(app, ["web-api"])
+
+    assert result.exit_code == 0
+    mock_enter.assert_called_once_with(rec.id, "bash")
+
+
+def test_cli_direct_exec_no_shell_flag_falls_back_to_sh() -> None:
+    """When probe returns only sh, CLI execs with sh."""
+    rec = _record()
+    runner = CliRunner()
+    with (
+        patch("pyocker_enter.cli.list_running_containers", return_value=[rec]),
+        patch("pyocker_enter.cli.probe_available_shells", return_value=["sh"]),
+        patch("pyocker_enter.cli.enter_container") as mock_enter,
+        patch("pyocker_enter.cli._require_tty"),
+    ):
+        result = runner.invoke(app, ["web-api"])
+
+    assert result.exit_code == 0
+    mock_enter.assert_called_once_with(rec.id, "sh")
+
+
+def test_cli_direct_exec_unknown_container_exits_no_match() -> None:
+    runner = CliRunner()
+    with (
+        patch("pyocker_enter.cli.list_running_containers", return_value=[]),
+        patch("pyocker_enter.cli.enter_container") as mock_enter,
+        patch("pyocker_enter.cli._require_tty"),
+    ):
+        result = runner.invoke(app, ["ghost-container", "--shell", "sh"])
+
+    assert result.exit_code == int(ExitCode.NO_MATCH)
+    mock_enter.assert_not_called()
