@@ -90,23 +90,24 @@ def resolve_container(query: str, records: list[ContainerRecord]) -> ContainerRe
 
 
 def probe_available_shells(container_id: str) -> list[str]:
-    """Return shells installed in the container (subset of ALLOWED_SHELLS)."""
-    import docker
-    import docker.errors
+    """Return shells installed in the container (subset of ALLOWED_SHELLS).
+
+    Probes each shell individually because `command -v sh bash zsh` in dash
+    stops emitting output after the first missing shell, silently dropping
+    shells that follow it in the argument list.
+    """
+    import docker  # noqa: PLC0415
+    import docker.errors  # noqa: PLC0415
 
     client = docker.from_env()
     try:
         container = client.containers.get(container_id)
-        exit_code, output = container.exec_run("sh -c 'command -v bash zsh sh'", demux=False)
-        if exit_code not in (0, 1) or not output:
-            return ["sh"]
         found = []
-        for line in output.decode().splitlines():
-            name = line.strip().rsplit("/", 1)[-1]
-            if name in ALLOWED_SHELLS:
-                found.append(name)
-        # Return in canonical order
-        return [s for s in ("sh", "bash", "zsh") if s in found] or ["sh"]
+        for shell in ("sh", "bash", "zsh"):
+            exit_code, _ = container.exec_run(f"command -v {shell}", demux=False)
+            if exit_code == 0:
+                found.append(shell)
+        return found or ["sh"]
     except (docker.errors.APIError, docker.errors.DockerException) as exc:
         log.warning("probe_shells.failed", container_id=container_id, error=str(exc))
         return ["sh"]
