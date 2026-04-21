@@ -1,0 +1,34 @@
+Screen {
+    align: center middle;
+}
+
+ContainerListScreen > Vertical {
+    width: 100%;
+    height: 100%;
+}
+
+ContainerListScreen #search {
+    dock: top;
+    margin: 0 1;
+}
+
+ContainerListScreen #containers {
+    height: 1fr;
+    margin: 0 1;
+}
+
+ShellPickerModal {
+    align: center middle;
+}
+
+ShellPickerModal > Vertical {
+    width: 40;
+    height: auto;
+    padding: 1 2;
+    background: $panel;
+    border: round $accent;
+}
+
+ShellPickerModal Label {
+    padding-bottom: 1;
+}

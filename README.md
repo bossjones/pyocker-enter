@@ -11,54 +11,66 @@ Interactive TUI for entering running Docker containers
 - **Github repository**: <https://github.com/bossjones/pyocker-enter/>
 - **Documentation** <https://bossjones.github.io/pyocker-enter/>
 
-## Getting started with your project
+## Getting started
 
-### 1. Create a New Repository
-
-First, create a repository on GitHub with the same name as this project, and then run the following commands:
+### Install
 
 ```bash
-git init -b main
-git add .
-git commit -m "init commit"
-git remote add origin git@github.com:bossjones/pyocker-enter.git
-git push -u origin main
-```
-
-### 2. Set Up Your Development Environment
-
-Then, install the environment and the pre-commit hooks with
-
-```bash
+uv tool install --from . pyocker-enter
+# or, inside a clone for development:
 make install
 ```
 
-This will also generate your `uv.lock` file
+### Usage
 
-### 3. Run the pre-commit hooks
-
-Initially, the CI/CD pipeline might be failing due to formatting issues. To resolve those run:
+Launch the interactive TUI (fuzzy search + shell picker):
 
 ```bash
-uv run pre-commit run -a
+pyocker-enter
 ```
 
-### 4. Commit the changes
-
-Lastly, commit the changes made by the two steps above to your repository.
+Skip the TUI and exec straight into a container by name, short-id, or unique
+short-id prefix. When `--shell` is omitted, the CLI probes the container for
+installed shells and prefers `bash`:
 
 ```bash
-git add .
-git commit -m 'Fix formatting issues'
-git push origin main
+pyocker-enter web-api
+pyocker-enter web-api --shell bash
+pyocker-enter web-api -s sh
 ```
 
-You are now ready to start development on your project!
-The CI/CD pipeline will be triggered when you open a pull request, merge to main, or when you create a new release.
+Allowed shells: `sh`, `bash`, `zsh`. Values outside that allow-list are
+rejected before `docker exec` is invoked.
 
-To finalize the set-up for publishing to PyPI, see [here](https://fpgmaas.github.io/cookiecutter-uv/features/publishing/#set-up-for-pypi).
-For activating the automatic documentation with MkDocs/Zensical, see [here](https://fpgmaas.github.io/cookiecutter-uv/features/docs_tool/#deploying-to-github-pages).
-To enable the code coverage reports, see [here](https://fpgmaas.github.io/cookiecutter-uv/features/codecov/).
+### Exit codes
+
+| Code | Meaning                                               |
+|------|-------------------------------------------------------|
+| 0    | Clean exit or user cancelled the TUI                  |
+| 1    | No running container matched, or query is ambiguous   |
+| 2    | Docker daemon not reachable                           |
+| 3    | Requested shell not installed in the target container |
+| 4    | stdin/stdout is not a TTY                             |
+| 130  | Process received SIGINT                               |
+
+### Environment
+
+- `PYOCKER_LOG_FILE` — override the default log path
+  (`~/.local/state/pyocker-enter/pyocker-enter.log`). The file handler always
+  writes one JSON object per line (5 MB × 3 rotating backups).
+- `LOG_FORMAT=json|pretty` — console/stderr renderer. Default is the pretty
+  Rich-based renderer; set to `json` for machine-readable stderr.
+
+### Development
+
+```bash
+make install           # uv sync + pre-commit install
+make check             # ruff + ty + deptry + pre-commit
+make test              # unit tests with coverage (integration suite skipped)
+make test-integration  # spins up docker-compose fixtures; requires Docker
+```
+
+---
 
 ## Releasing a new version
 

@@ -3,8 +3,16 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
+from typer.testing import CliRunner
 
-from pyocker_enter.docker_utils import enter_container, list_running_containers, probe_available_shells
+from pyocker_enter.cli import app
+from pyocker_enter.docker_utils import (
+    enter_container,
+    list_running_containers,
+    probe_available_shells,
+    resolve_container,
+)
+from pyocker_enter.errors import CLIError, ExitCode
 
 
 @pytest.mark.integration
@@ -56,3 +64,35 @@ def test_enter_container_builds_correct_execvp_args(compose_stack: None) -> None
 
     mock_execvp.assert_called_once_with("docker", ["docker", "exec", "-it", rec.id, "bash"])
     assert len(rec.id) == 64, f"expected 64-char id, got {len(rec.id)}"
+
+
+@pytest.mark.integration
+def test_resolve_container_ambiguity_raises_cli_error(compose_stack: None) -> None:
+    """An empty query prefix matches every short_id -> must raise CLIError(ambiguous).
+
+    With >= 2 running containers (the three fixtures are present), the empty
+    prefix matches every short_id under the unique-prefix precedence step,
+    exercising the ambiguity branch end-to-end against the real daemon.
+    """
+    records = list_running_containers()
+    assert len(records) >= 2
+
+    with pytest.raises(CLIError) as exc_info:
+        resolve_container("", records)
+
+    assert exc_info.value.exit_code == ExitCode.NO_MATCH
+    assert "ambiguous" in str(exc_info.value).lower()
+
+
+@pytest.mark.integration
+def test_tty_guard_refuses_when_stdin_not_tty(compose_stack: None) -> None:
+    """CliRunner's stdin is not a TTY -> CLI exits NOT_A_TTY without calling execvp."""
+    runner = CliRunner()
+    with patch("os.execvp") as mock_execvp:
+        result = runner.invoke(app, ["pyocker-test-bash", "--shell", "bash"])
+
+    assert result.exit_code == int(ExitCode.NOT_A_TTY), (
+        f"expected NOT_A_TTY ({int(ExitCode.NOT_A_TTY)}), got {result.exit_code}\n"
+        f"stdout={result.stdout!r} exc={result.exception!r}"
+    )
+    mock_execvp.assert_not_called()
