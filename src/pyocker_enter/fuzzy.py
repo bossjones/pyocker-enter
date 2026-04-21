@@ -4,7 +4,7 @@ from rapidfuzz import fuzz, process
 
 from pyocker_enter.docker_utils import ContainerRecord
 
-_SCORE_CUTOFF = 30
+_SCORE_CUTOFF = 60
 
 
 def rank(query: str, containers: list[ContainerRecord]) -> list[ContainerRecord]:
