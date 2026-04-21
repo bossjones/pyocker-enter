@@ -1,0 +1,52 @@
+site_name: pyocker-enter
+repo_url: https://github.com/bossjones/pyocker-enter
+site_url: https://bossjones.github.io/pyocker-enter
+site_description: Interactive TUI for entering running Docker containers
+site_author: Malcolm Jones
+edit_uri: edit/main/docs/
+repo_name: bossjones/pyocker-enter
+copyright: Maintained by <a href="https://bossjones.com">bossjones</a>.
+
+nav:
+  - Home: index.md
+  - Modules: modules.md
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: ["src/pyocker_enter"]
+theme:
+  name: material
+  feature:
+    tabs: true
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: white
+      accent: deep orange
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: deep orange
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/bossjones/pyocker-enter
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/pyocker-enter
+
+markdown_extensions:
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex:
+      generic: true
