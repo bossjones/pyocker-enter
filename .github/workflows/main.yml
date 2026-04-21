@@ -6,6 +6,7 @@ on:
       - main
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
 
 jobs:
   quality:
@@ -67,3 +68,19 @@ jobs:
 
       - name: Check if documentation can be built
         run: uv run mkdocs build -s
+
+  integration:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'run-integration')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Set up the environment
+        uses: ./.github/actions/setup-python-env
+
+      - name: Pull fixtures
+        run: docker compose -f tests/integration/docker-compose.yml pull
+
+      - name: Run integration tests
+        run: make test-integration

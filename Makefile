@@ -20,6 +20,10 @@ test: ## Test the code with pytest
 	@echo "🚀 Testing code: Running pytest"
 	@uv run python -m pytest --cov --cov-config=pyproject.toml --cov-report=xml
 
+.PHONY: test-integration
+test-integration: ## Run integration tests against docker-compose fixtures
+	@uv run pytest tests/integration -v -m integration
+
 .PHONY: build
 build: clean-build ## Build wheel file
 	@echo "🚀 Creating wheel file"

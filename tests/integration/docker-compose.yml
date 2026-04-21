@@ -1,0 +1,32 @@
+services:
+  pyocker-test-sh:
+    image: alpine:3.20
+    container_name: pyocker-test-sh
+    command: ["tail", "-f", "/dev/null"]
+    healthcheck:
+      test: ["CMD", "sh", "-c", "true"]
+      interval: 3s
+      retries: 15
+      start_period: 5s
+
+  pyocker-test-bash:
+    image: ubuntu:24.04
+    container_name: pyocker-test-bash
+    command: ["tail", "-f", "/dev/null"]
+    healthcheck:
+      test: ["CMD", "bash", "-c", "true"]
+      interval: 3s
+      retries: 15
+      start_period: 5s
+
+  pyocker-test-zsh:
+    build:
+      context: .
+      dockerfile: Dockerfile.zsh
+    container_name: pyocker-test-zsh
+    command: ["tail", "-f", "/dev/null"]
+    healthcheck:
+      test: ["CMD", "zsh", "-c", "true"]
+      interval: 3s
+      retries: 15
+      start_period: 5s
