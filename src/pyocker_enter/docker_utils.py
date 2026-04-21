@@ -96,8 +96,8 @@ def probe_available_shells(container_id: str) -> list[str]:
     stops emitting output after the first missing shell, silently dropping
     shells that follow it in the argument list.
     """
-    import docker  # noqa: PLC0415
-    import docker.errors  # noqa: PLC0415
+    import docker
+    import docker.errors
 
     client = docker.from_env()
     try:
@@ -108,10 +108,11 @@ def probe_available_shells(container_id: str) -> list[str]:
             exit_code, _ = container.exec_run(["sh", "-c", f"command -v {shell}"], demux=False)
             if exit_code == 0:
                 found.append(shell)
-        return found or ["sh"]
     except (docker.errors.APIError, docker.errors.DockerException) as exc:
         log.warning("probe_shells.failed", container_id=container_id, error=str(exc))
         return ["sh"]
+    else:
+        return found or ["sh"]
 
 
 def enter_container(container_id: str, shell: str) -> None:

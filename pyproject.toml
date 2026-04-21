@@ -69,6 +69,9 @@ markers = ["integration: tests that require a running Docker daemon"]
 target-version = "py310"
 line-length = 120
 fix = true
+exclude = [
+    ".claude/",
+]
 
 [tool.ruff.lint]
 select = [
