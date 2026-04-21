@@ -17,11 +17,21 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
+dependencies = [
+    "typer[all]>=0.15.0",
+    "textual>=8.0,<9.0",
+    "docker>=7.0",
+    "rapidfuzz>=3.0",
+    "structlog>=24.0",
+]
 
 [project.urls]
 Homepage = "https://bossjones.github.io/pyocker-enter/"
 Repository = "https://github.com/bossjones/pyocker-enter"
 Documentation = "https://bossjones.github.io/pyocker-enter/"
+
+[project.scripts]
+pyocker-enter = "pyocker_enter.cli:app"
 
 [dependency-groups]
 dev = [
@@ -35,6 +45,8 @@ dev = [
     "mkdocs>=1.6.1",
     "mkdocs-material>=9.7.6",
     "mkdocstrings[python]>=1.0.3",
+    "textual-dev>=1.7.0",
+    "pytest-asyncio>=0.24.0",
 ]
 
 [build-system]
@@ -50,6 +62,8 @@ python-version = "3.10"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = ["integration: tests that require a running Docker daemon"]
 
 [tool.ruff]
 target-version = "py310"
