@@ -134,7 +134,7 @@ def main():
         sys.exit(0)
     except Exception as e:
         # Handle any other errors gracefully
-        print(f"{RED}[Claude] # Error: {str(e)}{RESET}")
+        print(f"{RED}[Claude] # Error: {e!s}{RESET}")
         sys.exit(0)
 
 

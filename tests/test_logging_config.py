@@ -12,13 +12,9 @@ from pyocker_enter.logging_config import configure_logging, suspend_console_logg
 
 def _count_stderr_handlers() -> int:
     root = logging.getLogger()
-    return len(
-        [
-            h
-            for h in root.handlers
-            if isinstance(h, logging.StreamHandler) and getattr(h, "stream", None) is sys.stderr
-        ]
-    )
+    return len([
+        h for h in root.handlers if isinstance(h, logging.StreamHandler) and getattr(h, "stream", None) is sys.stderr
+    ])
 
 
 def test_file_handler_writes_json_lines(tmp_path: Path) -> None:

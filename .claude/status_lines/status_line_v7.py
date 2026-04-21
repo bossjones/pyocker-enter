@@ -14,8 +14,8 @@ Track session start time, show elapsed duration
 
 import json
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 try:
     from dotenv import load_dotenv
@@ -50,7 +50,7 @@ def get_session_start_time(session_id):
     session_times = {}
     if SESSION_TIMES_FILE.exists():
         try:
-            with open(SESSION_TIMES_FILE, "r") as f:
+            with open(SESSION_TIMES_FILE) as f:
                 session_times = json.load(f)
         except (json.JSONDecodeError, ValueError):
             session_times = {}
@@ -168,7 +168,7 @@ def main():
         sys.exit(0)
     except Exception as e:
         # Handle any other errors gracefully
-        print(f"{RED}[Claude] @ Error: {str(e)}{RESET}")
+        print(f"{RED}[Claude] @ Error: {e!s}{RESET}")
         sys.exit(0)
 
 

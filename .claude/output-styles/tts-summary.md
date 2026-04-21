@@ -33,7 +33,7 @@ uv run .claude/hooks/utils/tts/elevenlabs_tts.py "YOUR_MESSAGE_TO_DAN"
 
 ## Communication Guidelines
 
-- **Address Dan directly** when appropriate: "Dan, I've updated your..." or "Fixed the bug in..." 
+- **Address Dan directly** when appropriate: "Dan, I've updated your..." or "Fixed the bug in..."
 - **Focus on outcomes** for the user: what they can now do, what's been improved
 - **Be conversational** - speak as if telling Dan what you just did
 - **Highlight value** - emphasize what's useful about the change

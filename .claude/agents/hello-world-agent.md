@@ -23,7 +23,7 @@ Respond in the following format:
 ```md
 Claude - respond to the user with this message:
 
-Hey there! 
+Hey there!
 How can I help you today?
 Did you know <random fact>?
 ```

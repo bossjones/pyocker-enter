@@ -48,9 +48,7 @@ def configure_logging(log_file: Path | None = None) -> None:
     # Console handler — ConsoleRenderer unless LOG_FORMAT=json
     log_format = os.environ.get("LOG_FORMAT", "pretty").lower()
     console_processor: structlog.types.Processor = (
-        structlog.processors.JSONRenderer()
-        if log_format == "json"
-        else structlog.dev.ConsoleRenderer()
+        structlog.processors.JSONRenderer() if log_format == "json" else structlog.dev.ConsoleRenderer()
     )
 
     console_handler = logging.StreamHandler(sys.stderr)
@@ -86,9 +84,7 @@ def suspend_console_logging() -> Generator[None, None, None]:
     """
     root = logging.getLogger()
     stderr_handlers = [
-        h
-        for h in root.handlers
-        if isinstance(h, logging.StreamHandler) and getattr(h, "stream", None) is sys.stderr
+        h for h in root.handlers if isinstance(h, logging.StreamHandler) and getattr(h, "stream", None) is sys.stderr
     ]
     for h in stderr_handlers:
         root.removeHandler(h)

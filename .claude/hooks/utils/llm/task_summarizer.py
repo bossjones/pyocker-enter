@@ -16,8 +16,8 @@ Designed for TTS announcements to provide personalized feedback.
 
 import os
 import sys
-from typing import Optional
 from datetime import datetime
+
 from dotenv import load_dotenv
 
 
@@ -28,13 +28,13 @@ def debug_log(message: str) -> None:
         os.makedirs(log_dir, exist_ok=True)
         debug_path = os.path.join(log_dir, "subagent_debug.log")
         timestamp = datetime.now().isoformat()
-        with open(debug_path, 'a') as f:
+        with open(debug_path, "a") as f:
             f.write(f"[{timestamp}] [SUMMARIZER] {message}\n")
     except Exception:
         pass
 
 
-def summarize_subagent_task(task_description: str, agent_name: Optional[str] = None) -> str:
+def summarize_subagent_task(task_description: str, agent_name: str | None = None) -> str:
     """
     Generate a natural language summary of a completed subagent task.
 
@@ -88,6 +88,7 @@ Generate ONE summary:"""
 
     try:
         import anthropic
+
         debug_log("Anthropic module imported successfully")
 
         client = anthropic.Anthropic(api_key=api_key)
@@ -117,7 +118,7 @@ Generate ONE summary:"""
         return "Subagent task completed"
 
     except Exception as e:
-        debug_log(f"EXCEPTION: {type(e).__name__}: {str(e)}")
+        debug_log(f"EXCEPTION: {type(e).__name__}: {e!s}")
         return "Subagent task completed"
 
 
@@ -125,21 +126,9 @@ def main() -> None:
     """Command line interface for testing."""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Generate natural language summaries of subagent task completions"
-    )
-    parser.add_argument(
-        "task_description",
-        nargs="?",
-        help="Description of the completed task"
-    )
-    parser.add_argument(
-        "--agent-name",
-        "-a",
-        type=str,
-        default=None,
-        help="Name of the agent that completed the task"
-    )
+    parser = argparse.ArgumentParser(description="Generate natural language summaries of subagent task completions")
+    parser.add_argument("task_description", nargs="?", help="Description of the completed task")
+    parser.add_argument("--agent-name", "-a", type=str, default=None, help="Name of the agent that completed the task")
 
     args = parser.parse_args()
 
