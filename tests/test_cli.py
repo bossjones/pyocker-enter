@@ -106,6 +106,45 @@ def test_cli_tui_returning_none_exits_zero_without_exec() -> None:
     mock_enter.assert_not_called()
 
 
+def test_cli_direct_exec_daemon_unreachable_exits_two() -> None:
+    """If docker.from_env fails, CLI exits with DAEMON_UNREACHABLE (2) and a friendly message."""
+    import docker.errors
+
+    runner = CliRunner()
+    with (
+        patch(
+            "pyocker_enter.cli.list_running_containers",
+            side_effect=docker.errors.DockerException("Cannot connect"),
+        ),
+        patch("pyocker_enter.cli.enter_container") as mock_enter,
+        patch("pyocker_enter.cli._require_tty"),
+    ):
+        result = runner.invoke(app, ["whatever", "--shell", "sh"])
+
+    assert result.exit_code == int(ExitCode.DAEMON_UNREACHABLE)
+    mock_enter.assert_not_called()
+    assert "daemon" in (result.stderr + result.output).lower()
+
+
+def test_cli_tui_daemon_unreachable_exits_two() -> None:
+    """TUI path also surfaces daemon errors as exit 2."""
+    import docker.errors
+
+    runner = CliRunner()
+    with (
+        patch(
+            "pyocker_enter.cli.PyockerEnterApp",
+            side_effect=docker.errors.DockerException("Cannot connect"),
+        ),
+        patch("pyocker_enter.cli.enter_container") as mock_enter,
+        patch("pyocker_enter.cli._require_tty"),
+    ):
+        result = runner.invoke(app, [])
+
+    assert result.exit_code == int(ExitCode.DAEMON_UNREACHABLE)
+    mock_enter.assert_not_called()
+
+
 def test_cli_direct_exec_unknown_container_exits_no_match() -> None:
     runner = CliRunner()
     with (
