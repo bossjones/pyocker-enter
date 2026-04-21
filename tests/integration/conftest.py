@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+from collections.abc import Generator
 from pathlib import Path
 
 import pytest
@@ -26,7 +27,7 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
 
 
 @pytest.fixture(scope="session")
-def compose_stack() -> None:
+def compose_stack() -> Generator[None, None, None]:
     """Session-scoped fixture: start docker compose stack, yield, tear down."""
     docker = _docker_bin()
 
