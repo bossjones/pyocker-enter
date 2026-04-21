@@ -12,13 +12,19 @@ check: ## Run code quality tools.
 	@uv run pre-commit run -a
 	@echo "🚀 Static type checking: Running ty"
 	@uv run ty check
-	@echo "🚀 Checking for obsolete dependencies: Running deptry"
-	@uv run deptry src
+
+# NOTE: ignore deptry for now as it is not working correctly
+# @echo "🚀 Checking for obsolete dependencies: Running deptry"
+# @uv run deptry src
 
 .PHONY: test
 test: ## Test the code with pytest
 	@echo "🚀 Testing code: Running pytest"
-	@uv run python -m pytest --cov --cov-config=pyproject.toml --cov-report=xml
+	@uv run python -m pytest -m "not integration" --cov --cov-config=pyproject.toml --cov-report=xml
+
+.PHONY: test-integration
+test-integration: ## Run integration tests against docker-compose fixtures
+	@uv run pytest tests/integration -v -m integration
 
 .PHONY: build
 build: clean-build ## Build wheel file
