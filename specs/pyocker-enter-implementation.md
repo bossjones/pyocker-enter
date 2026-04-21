@@ -147,9 +147,10 @@ IMPORTANT: Execute every step in order, top to bottom. One commit per numbered t
 - Replace body of `src/pyocker_enter/__init__.py` with `__version__ = "0.0.1"` (keep it minimal until the CLI module exists).
 - Run:
   ```bash
-  uv add "typer[all]" textual docker rapidfuzz structlog
+  uv add "typer[all]" "textual>=8.0,<9.0" docker rapidfuzz structlog
   uv add --dev textual-dev pytest-asyncio
   ```
+- **Note:** `textual` is pinned to `>=8.0,<9.0` to guard against backward-incompatible minor releases.
 - Add to `pyproject.toml`:
   ```toml
   [project.scripts]
@@ -177,6 +178,7 @@ IMPORTANT: Execute every step in order, top to bottom. One commit per numbered t
   - File handler wrapped with `structlog.stdlib.ProcessorFormatter(processor=JSONRenderer())`.
   - Console handler wrapped with `structlog.stdlib.ProcessorFormatter(processor=JSONRenderer() if LOG_FORMAT=="json" else ConsoleRenderer())`.
   - Call `structlog.configure(...)` with `wrapper_class=BoundLogger`, `logger_factory=LoggerFactory()`, `cache_logger_on_first_use=True`.
+- Expose a `suspend_console_logging()` context manager in `logging_config.py` that removes the `StreamHandler` targeting stderr for the duration of the `with` block and re-attaches it on exit. This prevents structlog's console renderer from writing ANSI frames on top of Textual's display while the TUI is running.
 - Run tests → pass.
 - Commit: `feat(logging): add structlog config with rotating JSON file handler`.
 
@@ -205,7 +207,7 @@ IMPORTANT: Execute every step in order, top to bottom. One commit per numbered t
   - Call `enter_container("abcd1234", "bash")`.
   - Assert `os.execvp.assert_called_once_with("docker", ["docker", "exec", "-it", "abcd1234", "bash"])`.
 - Implement. Log `log.info("exec.invoked", container_id=..., shell=...)` BEFORE the execvp call — after execvp nothing in Python runs.
-- Validate `shell` is in `{"sh", "bash", "zsh"}` and raise `ValueError` otherwise (defense against shell-injection via the CLI arg).
+- Validate `shell` is in `{"sh", "bash", "zsh"}` and raise `CLIError("shell not in allow-list", ExitCode.SHELL_UNAVAILABLE)` otherwise (import from `pyocker_enter.errors`).
 - Commit: `feat(docker): exec handoff via os.execvp`.
 
 ### 6. Implement `fuzzy.rank`
@@ -232,7 +234,8 @@ IMPORTANT: Execute every step in order, top to bottom. One commit per numbered t
   - `app = typer.Typer(no_args_is_help=False, add_completion=False)`.
   - One command (use `@app.callback(invoke_without_command=True)`) accepting positional `container: str | None` and option `--shell / -s: str | None` with `click.Choice(["sh", "bash", "zsh"])`.
   - On startup: `configure_logging()`.
-  - If `container` is provided: resolve by name OR short_id against `list_running_containers()`; if not found, `typer.echo("no running container matches ...", err=True)` + `raise typer.Exit(1)`.
+  - If `container` is provided: call `docker_utils.resolve_container(container, list_running_containers())` — see the resolve_container implementation which applies precedence: exact name → exact short_id → exact full_id → unique prefix of short_id → raise `CLIError(ExitCode.NO_MATCH)`.
+  - **TTY guard:** Before calling `enter_container`, assert `sys.stdin.isatty() and sys.stdout.isatty()` via `_require_tty()` — if not, raise `CLIError('stdin/stdout is not a TTY', ExitCode.NOT_A_TTY)` and exit with code 4.
   - If `shell` is None, open the shell picker modal as a standalone Textual screen (implement in later task; for now, default to `sh` and note a TODO).
   - If no `container`: placeholder `typer.echo("TUI not implemented yet")` for this commit.
 - Commit: `feat(cli): typer entry point with direct-exec path`.
@@ -267,7 +270,15 @@ IMPORTANT: Execute every step in order, top to bottom. One commit per numbered t
   - Monkeypatch `PyockerEnterApp.run` to return `("abcd1234", "bash")`.
   - Invoke `pyocker-enter` with no args.
   - Assert `enter_container.assert_called_once_with("abcd1234", "bash")`.
-- In `cli.py`: when `container` is None, instantiate `PyockerEnterApp()`, call `app.run()`, then AFTER it returns and the terminal is restored, call `enter_container(*result)`. If the user pressed q or Ctrl-C, `result` will be `None` → just exit 0.
+- In `cli.py`: when `container` is None, instantiate `PyockerEnterApp()`, call `app.run()`, then AFTER it returns and the terminal is restored, call `enter_container(*result)`. The TUI branch must wrap `PyockerEnterApp().run()` with `suspend_console_logging()`:
+  ```python
+  with suspend_console_logging():
+      result = PyockerEnterApp().run()
+  if result:
+      _require_tty()
+      enter_container(*result)
+  ```
+  If the user pressed q or Ctrl-C, `result` will be `None` → just exit 0.
 - Make `PyockerEnterApp(App[tuple[str, str]])` with `SCREENS = {"container_list": ContainerListScreen}` and `on_mount` pushing the initial screen.
 - Commit: `feat(tui): wire TUI into CLI with clean execvp handoff`.
 
@@ -301,6 +312,8 @@ IMPORTANT: Execute every step in order, top to bottom. One commit per numbered t
   ```
 - Create `tests/integration/docker-compose.yml` with the three services from the **Integration Test Fixtures** section (`pyocker-test-sh` / `pyocker-test-bash` / `pyocker-test-zsh`), each with `command: ["tail", "-f", "/dev/null"]` and per-service healthchecks so `--wait` can block until they're ready.
 - Create `tests/integration/conftest.py` with a session-scoped `compose_stack` fixture that:
+  - Run `subprocess.run(["docker", "compose", "-f", <path>, "pull"], check=True)` first so image pulls complete before healthcheck retries begin.
+  - Bump per-service healthcheck `retries: 5` → `retries: 15` and `interval: 2s` → `interval: 3s` for CI link tolerance.
   - `subprocess.run(["docker", "compose", "-f", <path>, "up", "-d", "--wait"], check=True)` on entry.
   - `subprocess.run(["docker", "compose", "-f", <path>, "down", "-v"], check=True)` on exit.
   - Auto-skips (`pytest.skip("docker daemon not available")`) if `docker version` fails.
@@ -315,6 +328,8 @@ IMPORTANT: Execute every step in order, top to bottom. One commit per numbered t
   - `test_probe_available_shells_on_bash_container_returns_sh_and_bash` — resolves `pyocker-test-bash` and asserts `set(probe_available_shells(id)) == {"sh", "bash"}`.
   - `test_probe_available_shells_on_zsh_container_returns_all_three` — asserts `set(probe_available_shells(id)) == {"sh", "bash", "zsh"}`.
   - `test_enter_container_builds_correct_execvp_args_against_real_id` — monkeypatches `os.execvp`, calls `enter_container(real_id, "bash")` against `pyocker-test-bash`, asserts execvp was called with the real 64-char id.
+  - `test_resolve_container_ambiguity_raises_cli_error` — two containers with names starting with `"abc"`, query `"abc"` → asserts `CLIError` raised with `exit_code == ExitCode.NO_MATCH`.
+  - `test_tty_guard_refuses_when_stdin_not_tty` — monkeypatches `sys.stdin.isatty` to return `False`, asserts `os.execvp` not called and exit code is `ExitCode.NOT_A_TTY`.
 - Add a Makefile target for convenience:
   ```make
   .PHONY: test-integration
@@ -396,3 +411,26 @@ Execute these to validate the task is complete:
 - **Rotation policy:** 5 MB per file × 3 backups = 20 MB max. Cheap audit trail, bounded disk use.
 - **Security:** validate `--shell` against a strict allow-list (`sh`/`bash`/`zsh`) before it reaches `os.execvp`; never pass user input to a shell string.
 - **Out of scope for v1:** attaching to exited containers, running arbitrary one-off commands instead of a shell, multi-container broadcast, custom shell binaries outside the allow-list. Add as `--exec CMD` and `--any-shell PATH` flags in v2 only if users actually ask.
+
+---
+
+## Error Taxonomy and TTY Handling
+
+All exit codes are defined in `src/pyocker_enter/errors.py` as `ExitCode(IntEnum)`. Every code path in `cli.py` that exits non-zero must use one of these values — never bare integer literals.
+
+| Code | Name | Meaning |
+|------|------|---------|
+| 0 | `OK` | Clean exit or user cancelled TUI without selecting |
+| 1 | `NO_MATCH` | No running container matched the query, or query is ambiguous |
+| 2 | `DAEMON_UNREACHABLE` | Docker daemon not reachable (`docker.errors.DockerException`) |
+| 3 | `SHELL_UNAVAILABLE` | Requested shell not installed in the target container |
+| 4 | `NOT_A_TTY` | `stdin` or `stdout` is not a TTY; `docker exec -it` would fail |
+| 130 | `USER_CANCELLED` | Process received SIGINT (Ctrl-C convention) |
+
+### TTY Guard
+
+`cli.py` must call `_require_tty()` before every `enter_container(...)` call. `_require_tty()` checks `sys.stdin.isatty() and sys.stdout.isatty()` and raises `CLIError('stdin/stdout is not a TTY', ExitCode.NOT_A_TTY)` if either is false. This prevents the confusing `the input device is not a TTY` error from Docker.
+
+### TUI Logging Suspension
+
+While Textual owns the terminal, `logging_config.suspend_console_logging()` removes the stderr `StreamHandler` so structlog's `ConsoleRenderer` does not write ANSI escape sequences on top of Textual's display. The handler is re-attached when the context manager exits (i.e., after `app.run()` returns).
