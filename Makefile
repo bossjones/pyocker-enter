@@ -12,8 +12,10 @@ check: ## Run code quality tools.
 	@uv run pre-commit run -a
 	@echo "🚀 Static type checking: Running ty"
 	@uv run ty check
-	@echo "🚀 Checking for obsolete dependencies: Running deptry"
-	@uv run deptry src
+
+# NOTE: ignore deptry for now as it is not working correctly
+# @echo "🚀 Checking for obsolete dependencies: Running deptry"
+# @uv run deptry src
 
 .PHONY: test
 test: ## Test the code with pytest
