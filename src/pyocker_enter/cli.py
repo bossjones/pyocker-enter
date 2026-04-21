@@ -19,8 +19,7 @@ from pyocker_enter.tui.app import PyockerEnterApp
 
 _NOT_A_TTY_MESSAGE = "stdin/stdout is not a TTY; docker exec -it requires a real terminal"
 _DAEMON_UNREACHABLE_MESSAGE = (
-    "could not reach the docker daemon. Is it running? "
-    "Check DOCKER_HOST or start Docker Desktop / dockerd."
+    "could not reach the docker daemon. Is it running? Check DOCKER_HOST or start Docker Desktop / dockerd."
 )
 _SHELL_CHOICES = click.Choice(["sh", "bash", "zsh"])
 

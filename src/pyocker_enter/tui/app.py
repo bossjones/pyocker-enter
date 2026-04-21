@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import ClassVar
 
 import structlog
 from textual.app import App, ComposeResult
@@ -41,7 +42,7 @@ def _uptime(started_at: datetime) -> str:
 class ContainerListScreen(Screen[tuple[str, str] | None]):
     """Fuzzy-searchable list of running containers with a shell picker on submit."""
 
-    BINDINGS = [
+    BINDINGS: ClassVar = [
         Binding("escape", "app.quit", "Quit"),
     ]
 
@@ -111,7 +112,7 @@ class PyockerEnterApp(App[tuple[str, str] | None]):
     """Top-level Textual app. Pushes ContainerListScreen on mount."""
 
     CSS_PATH = Path(__file__).parent / "styles.tcss"
-    BINDINGS = [("q", "quit", "Quit"), ("ctrl+c", "quit", "Quit")]
+    BINDINGS: ClassVar = [("q", "quit", "Quit"), ("ctrl+c", "quit", "Quit")]
 
     def __init__(
         self,

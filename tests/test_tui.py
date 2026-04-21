@@ -78,6 +78,7 @@ async def test_container_list_filters_on_input_change() -> None:
         assert table.row_count == 3
 
         from textual.widgets import Input
+
         search = app.query_one("#search", Input)
         search.value = "web"
         await pilot.pause()
@@ -86,31 +87,32 @@ async def test_container_list_filters_on_input_change() -> None:
         table = app.query_one("#containers", DataTable)
         assert table.row_count == 2
         # Confirm only web-* entries remain
-        names = {
-            table.get_row_at(i)[1] for i in range(table.row_count)
-        }
+        names = {table.get_row_at(i)[1] for i in range(table.row_count)}
         assert names == {"web-api", "web-db"}
 
 
 @pytest.mark.asyncio
-async def test_tui_skips_modal_when_only_one_shell_installed() -> None:
+async def test_tui_skips_modal_when_only_one_shell_installed(monkeypatch: pytest.MonkeyPatch) -> None:
     """When probe returns ["sh"], the app should exit with that shell, no modal."""
     records = [_rec("only-sh", "ssssssssssss")]
-    probe = lambda _id: ["sh"]  # noqa: E731
+    probe = lambda _id: ["sh"]
     app = PyockerEnterApp(records=records, shell_probe=probe)
 
     modal_pushed = False
-    original_push = app.push_screen
+    from pyocker_enter.tui import app as app_mod
 
-    def _spy_push(*args: Any, **kwargs: Any):
-        nonlocal modal_pushed
-        if args and isinstance(args[0], ShellPickerModal):
+    real_modal_cls = app_mod.ShellPickerModal
+
+    class _SpyModal(real_modal_cls):
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            nonlocal modal_pushed
             modal_pushed = True
-        return original_push(*args, **kwargs)
+            super().__init__(*args, **kwargs)
+
+    monkeypatch.setattr(app_mod, "ShellPickerModal", _SpyModal)
 
     async with app.run_test() as pilot:
         await pilot.pause()
-        app.push_screen = _spy_push  # type: ignore[method-assign]
         table = app.query_one("#containers", DataTable)
         table.focus()
         await pilot.pause()
@@ -125,7 +127,7 @@ async def test_tui_skips_modal_when_only_one_shell_installed() -> None:
 async def test_tui_shows_modal_when_multiple_shells_installed() -> None:
     """With multiple shells, the modal is pushed and the picked shell is returned."""
     records = [_rec("multi", "mmmmmmmmmmmm")]
-    probe = lambda _id: ["sh", "bash"]  # noqa: E731
+    probe = lambda _id: ["sh", "bash"]
     app = PyockerEnterApp(records=records, shell_probe=probe)
 
     async with app.run_test() as pilot:

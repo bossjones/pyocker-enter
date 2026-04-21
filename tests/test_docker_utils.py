@@ -24,13 +24,13 @@ class _FakeContainer:
     def __init__(
         self,
         *,
-        id: str,
+        container_id: str,
         name: str,
         image_tags: list[str],
         status: str = "running",
         started_at: str = "2026-04-21T00:00:00.000000",
     ) -> None:
-        self.id = id
+        self.id = container_id
         self.name = name
         self.image = _FakeImage(image_tags)
         self.status = status
@@ -38,8 +38,8 @@ class _FakeContainer:
 
 
 def test_list_running_containers_returns_dataclass_records(monkeypatch: pytest.MonkeyPatch) -> None:
-    c1 = _FakeContainer(id="a" * 64, name="web-api", image_tags=["nginx:latest"])
-    c2 = _FakeContainer(id="b" * 64, name="cache", image_tags=[])  # empty tags
+    c1 = _FakeContainer(container_id="a" * 64, name="web-api", image_tags=["nginx:latest"])
+    c2 = _FakeContainer(container_id="b" * 64, name="cache", image_tags=[])  # empty tags
 
     fake_client = MagicMock()
     fake_client.containers.list.return_value = [c1, c2]
@@ -107,7 +107,7 @@ def test_enter_container_rejects_shell_outside_allow_list(monkeypatch: pytest.Mo
 
 def test_list_running_containers_handles_bad_timestamp(monkeypatch: pytest.MonkeyPatch) -> None:
     """Invalid StartedAt should not crash; falls back to now()."""
-    c = _FakeContainer(id="c" * 64, name="odd", image_tags=["alpine"], started_at="not-an-isoformat")
+    c = _FakeContainer(container_id="c" * 64, name="odd", image_tags=["alpine"], started_at="not-an-isoformat")
     fake_client = SimpleNamespace(containers=SimpleNamespace(list=lambda filters: [c]))
     monkeypatch.setattr("docker.from_env", lambda: fake_client)
 

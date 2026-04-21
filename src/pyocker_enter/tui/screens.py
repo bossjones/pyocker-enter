@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import ClassVar
+
 from textual.app import ComposeResult
 from textual.containers import Vertical
 from textual.screen import ModalScreen
@@ -13,7 +15,7 @@ class ShellPickerModal(ModalScreen[str | None]):
     cancels via ``escape``.
     """
 
-    BINDINGS = [("escape", "cancel", "Cancel")]
+    BINDINGS: ClassVar = [("escape", "cancel", "Cancel")]
 
     DEFAULT_CSS = """
     ShellPickerModal {
