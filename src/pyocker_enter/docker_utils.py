@@ -104,7 +104,8 @@ def probe_available_shells(container_id: str) -> list[str]:
         container = client.containers.get(container_id)
         found = []
         for shell in ("sh", "bash", "zsh"):
-            exit_code, _ = container.exec_run(f"command -v {shell}", demux=False)
+            # command -v is a shell built-in; must wrap in sh -c to run via exec_run
+            exit_code, _ = container.exec_run(["sh", "-c", f"command -v {shell}"], demux=False)
             if exit_code == 0:
                 found.append(shell)
         return found or ["sh"]
