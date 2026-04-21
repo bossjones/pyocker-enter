@@ -13,7 +13,8 @@ from pyocker_enter.docker_utils import (
     resolve_container,
 )
 from pyocker_enter.errors import CLIError, ExitCode
-from pyocker_enter.logging_config import configure_logging
+from pyocker_enter.logging_config import configure_logging, suspend_console_logging
+from pyocker_enter.tui.app import PyockerEnterApp
 
 _NOT_A_TTY_MESSAGE = "stdin/stdout is not a TTY; docker exec -it requires a real terminal"
 _SHELL_CHOICES = click.Choice(["sh", "bash", "zsh"])
@@ -77,8 +78,28 @@ def main(
             typer.echo(str(exc), err=True)
             raise typer.Exit(code=int(exc.exit_code)) from exc
     else:
-        # TUI path: stub until Step G wires it up.
-        typer.echo("[stub] TUI not yet implemented")
+        # TUI path: let Textual own the terminal; suspend console logging so
+        # structlog's ConsoleRenderer doesn't scribble on top of the UI.
+        with suspend_console_logging():
+            result = PyockerEnterApp().run()
+
+        if result is None:
+            # User cancelled the TUI — clean exit, no handoff.
+            return
+
+        container_id, chosen_shell = result
+
+        try:
+            _require_tty()
+        except CLIError as exc:
+            typer.echo(str(exc), err=True)
+            raise typer.Exit(code=int(exc.exit_code)) from exc
+
+        try:
+            enter_container(container_id, chosen_shell)
+        except CLIError as exc:
+            typer.echo(str(exc), err=True)
+            raise typer.Exit(code=int(exc.exit_code)) from exc
 
 
 app = typer.Typer(no_args_is_help=False, add_completion=False)

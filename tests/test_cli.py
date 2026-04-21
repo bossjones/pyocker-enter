@@ -73,6 +73,39 @@ def test_cli_direct_exec_no_shell_flag_falls_back_to_sh() -> None:
     mock_enter.assert_called_once_with(rec.id, "sh")
 
 
+def test_cli_launches_tui_when_no_container_arg() -> None:
+    """With no positional arg, CLI runs the TUI and execs the tuple it returns."""
+    runner = CliRunner()
+
+    with (
+        patch("pyocker_enter.cli.PyockerEnterApp") as mock_app_cls,
+        patch("pyocker_enter.cli.enter_container") as mock_enter,
+        patch("pyocker_enter.cli._require_tty"),
+    ):
+        mock_app_cls.return_value.run.return_value = ("abcd1234" + "0" * 56, "bash")
+        result = runner.invoke(app, [])
+
+    assert result.exit_code == 0, f"stdout={result.stdout!r} exc={result.exception!r}"
+    mock_app_cls.return_value.run.assert_called_once()
+    mock_enter.assert_called_once_with("abcd1234" + "0" * 56, "bash")
+
+
+def test_cli_tui_returning_none_exits_zero_without_exec() -> None:
+    """User cancelling the TUI (q or Ctrl-C) should exit 0 with no execvp."""
+    runner = CliRunner()
+
+    with (
+        patch("pyocker_enter.cli.PyockerEnterApp") as mock_app_cls,
+        patch("pyocker_enter.cli.enter_container") as mock_enter,
+        patch("pyocker_enter.cli._require_tty"),
+    ):
+        mock_app_cls.return_value.run.return_value = None
+        result = runner.invoke(app, [])
+
+    assert result.exit_code == 0
+    mock_enter.assert_not_called()
+
+
 def test_cli_direct_exec_unknown_container_exits_no_match() -> None:
     runner = CliRunner()
     with (
