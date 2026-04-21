@@ -90,3 +90,53 @@ async def test_container_list_filters_on_input_change() -> None:
             table.get_row_at(i)[1] for i in range(table.row_count)
         }
         assert names == {"web-api", "web-db"}
+
+
+@pytest.mark.asyncio
+async def test_tui_skips_modal_when_only_one_shell_installed() -> None:
+    """When probe returns ["sh"], the app should exit with that shell, no modal."""
+    records = [_rec("only-sh", "ssssssssssss")]
+    probe = lambda _id: ["sh"]  # noqa: E731
+    app = PyockerEnterApp(records=records, shell_probe=probe)
+
+    modal_pushed = False
+    original_push = app.push_screen
+
+    def _spy_push(*args: Any, **kwargs: Any):
+        nonlocal modal_pushed
+        if args and isinstance(args[0], ShellPickerModal):
+            modal_pushed = True
+        return original_push(*args, **kwargs)
+
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        app.push_screen = _spy_push  # type: ignore[method-assign]
+        table = app.query_one("#containers", DataTable)
+        table.focus()
+        await pilot.pause()
+        await pilot.press("enter")
+        await pilot.pause()
+
+    assert modal_pushed is False
+    assert app.return_value == (records[0].id, "sh")
+
+
+@pytest.mark.asyncio
+async def test_tui_shows_modal_when_multiple_shells_installed() -> None:
+    """With multiple shells, the modal is pushed and the picked shell is returned."""
+    records = [_rec("multi", "mmmmmmmmmmmm")]
+    probe = lambda _id: ["sh", "bash"]  # noqa: E731
+    app = PyockerEnterApp(records=records, shell_probe=probe)
+
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        table = app.query_one("#containers", DataTable)
+        table.focus()
+        await pilot.pause()
+        await pilot.press("enter")
+        await pilot.pause()
+        # Modal is now active; select second entry (bash) and confirm
+        await pilot.press("down", "enter")
+        await pilot.pause()
+
+    assert app.return_value == (records[0].id, "bash")
